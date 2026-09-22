@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>supra-openai &mdash; OpenAI-compatible API for Supra2-IMG</title>
+<meta name="description" content="Run SupraLabs/Supra2-IMG behind the OpenAI Images API. One Docker command, the official OpenAI SDKs, and a built-in web form.">
+<meta property="og:title" content="supra-openai">
+<meta property="og:description" content="OpenAI-compatible Images API server for SupraLabs/Supra2-IMG, a 100M-parameter text-to-image model.">
+<meta property="og:image" content="https://ingmmo.com/openai-supra/samples/jellyfish.png">
+<meta name="twitter:card" content="summary_large_image">
+<style>
+  :root {
+    --bg: #0f1115; --panel: #171a21; --line: #272b36; --text: #e8eaf0;
+    --muted: #949bac; --accent: #6ea8fe; --accent-ink: #0b1220; --code-bg: #10131a;
+    --radius: 12px;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f6f7f9; --panel: #ffffff; --line: #e2e5ea; --text: #16181d;
+      --muted: #5d6474; --accent: #2563eb; --accent-ink: #ffffff; --code-bg: #0f1115;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    -webkit-text-size-adjust: 100%;
+  }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 0 16px; }
+  a { color: var(--accent); }
+
+  header { padding: 64px 0 40px; text-align: center; }
+  h1 { margin: 0; font-size: clamp(30px, 6vw, 44px); letter-spacing: -.5px; }
+  .tagline { margin: 12px auto 0; max-width: 620px; color: var(--muted); font-size: 17px; }
+  .facts { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 18px; }
+  .fact { border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px; font-size: 13px; color: var(--muted); }
+  .cta { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 24px; }
+  .btn {
+    display: inline-block; padding: 10px 18px; border-radius: 9px; text-decoration: none;
+    font-weight: 600; font-size: 15px; border: 1px solid var(--line); color: var(--text);
+  }
+  .btn.solid { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
+  .btn:hover { border-color: var(--accent); }
+
+  section { padding: 40px 0; border-top: 1px solid var(--line); }
+  h2 { font-size: 22px; margin: 0 0 6px; letter-spacing: -.2px; }
+  h2 + p { margin-top: 0; color: var(--muted); }
+
+  .cols { display: grid; gap: 16px; grid-template-columns: 1fr 1fr; align-items: start; }
+  @media (max-width: 760px) { .cols { grid-template-columns: 1fr; } }
+
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+  .card h3 { margin: 0; padding: 12px 16px; font-size: 13px; font-weight: 600; color: var(--muted); border-bottom: 1px solid var(--line); }
+  pre {
+    margin: 0; padding: 16px; overflow-x: auto; background: var(--code-bg); color: #e8eaf0;
+    font: 13px/1.65 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  .copy {
+    position: absolute; top: 10px; right: 10px; border: 1px solid #2c3140; background: #1b1f29;
+    color: #cfd5e4; border-radius: 6px; padding: 3px 9px; font-size: 12px; cursor: pointer;
+  }
+  .copy:hover { border-color: var(--accent); }
+  .codewrap { position: relative; }
+
+  .gallery { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(168px, 1fr)); }
+  figure { margin: 0; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+  /* height:auto is needed because the width/height attributes act as CSS on the element. */
+  figure img { display: block; width: 100%; height: auto; aspect-ratio: 1; object-fit: cover; background: #000; }
+  figcaption { padding: 10px 12px; font-size: 12.5px; color: var(--muted); }
+  .shot { width: 100%; height: auto; border: 1px solid var(--line); border-radius: var(--radius); display: block; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 14.5px; }
+  th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; font-size: 13px; }
+  td code, p code, li code { background: var(--panel); border: 1px solid var(--line); border-radius: 5px; padding: 1px 5px; font-size: 13px; }
+  ul.notes { padding-left: 18px; color: var(--muted); }
+  ul.notes li { margin-bottom: 6px; }
+  ul.notes strong { color: var(--text); font-weight: 600; }
+
+  footer { padding: 32px 0 56px; border-top: 1px solid var(--line); color: var(--muted); font-size: 14px; text-align: center; }
+</style>
+</head>
+<body>
+
+<header class="wrap">
+  <h1>supra-openai</h1>
+  <p class="tagline">
+    Run <a href="https://huggingface.co/SupraLabs/Supra2-IMG">SupraLabs/Supra2-IMG</a> behind the
+    OpenAI Images API. Point the official OpenAI SDK at it, change <code>base_url</code>, and
+    <code>client.images.generate()</code> works &mdash; on your own CPU or GPU.
+  </p>
+  <div class="facts">
+    <span class="fact">105M parameters</span>
+    <span class="fact">256 &times; 256 native</span>
+    <span class="fact">CPU or CUDA</span>
+    <span class="fact">amd64 + arm64</span>
+    <span class="fact">Apache-2.0</span>
+  </div>
+  <div class="cta">
+    <a class="btn solid" href="https://github.com/sirmmo/openai-supra">GitHub repository</a>
+    <a class="btn" href="https://github.com/sirmmo/openai-supra/pkgs/container/openai-supra">GHCR image</a>
+    <a class="btn" href="https://huggingface.co/SupraLabs/Supra2-IMG">Model card</a>
+  </div>
+</header>
+
+<main>
+<section class="wrap">
+  <h2>Run it</h2>
+  <p>One container. Weights download on first start and are cached in the volume.</p>
+  <div class="cols">
+    <div class="card">
+      <h3>Start the server</h3>
+      <div class="codewrap">
+        <button class="copy" type="button">copy</button>
+<pre><code>docker run -p 8000:8000 \
+  -v supra-hf:/data/hf \
+  ghcr.io/sirmmo/openai-supra:latest</code></pre>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Generate with the OpenAI SDK</h3>
+      <div class="codewrap">
+        <button class="copy" type="button">copy</button>
+<pre><code>from openai import OpenAI
+
+client = OpenAI(
+    base_url="http://localhost:8000/v1",
+    api_key="not-needed",
+)
+
+result = client.images.generate(
+    model="supra2-img",
+    prompt="a red fox in fresh snow",
+    extra_body={"seed": 42, "steps": 50},
+)</code></pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="wrap">
+  <h2>Samples</h2>
+  <p>Generated by this server on CPU, at the model's native 256&thinsp;&times;&thinsp;256.</p>
+  <div class="gallery">
+    <figure>
+      <img src="samples/jellyfish.png" alt="A jellyfish glowing in dark water" loading="lazy" width="256" height="256">
+      <figcaption>&ldquo;a sea jellyfish floating in the pitch-black ocean depths&rdquo; &middot; seed 0, 50 steps</figcaption>
+    </figure>
+    <figure>
+      <img src="samples/fox_0.jpg" alt="A red fox sitting in snow at golden hour" loading="lazy" width="512" height="512">
+      <figcaption>&ldquo;a red fox sitting in fresh snow, golden hour&rdquo; &middot; seed 42, 20 steps</figcaption>
+    </figure>
+    <figure>
+      <img src="samples/cabin.png" alt="A lit cabin among pine trees at night" loading="lazy" width="256" height="256">
+      <figcaption>&ldquo;a cozy cabin in a pine forest at night, warm window light&rdquo; &middot; seed 3, 30 steps</figcaption>
+    </figure>
+    <figure>
+      <img src="samples/balloon.png" alt="A hot air balloon above hills at sunrise" loading="lazy" width="256" height="256">
+      <figcaption>&ldquo;a hot air balloon over green hills at sunrise&rdquo; &middot; seed 0, 50 steps</figcaption>
+    </figure>
+    <figure>
+      <img src="samples/boat.png" alt="A wooden sailboat on turquoise water" loading="lazy" width="256" height="256">
+      <figcaption>&ldquo;a wooden sailboat on a calm turquoise sea&rdquo; &middot; seed 0, 50 steps</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section class="wrap">
+  <h2>Built-in web form</h2>
+  <p>The server's root serves a form for prompting without any client &mdash; same API underneath.</p>
+  <img class="shot" src="samples/web-form.png" alt="Screenshot of the built-in generation form showing two lighthouse images" loading="lazy" width="1180" height="820">
+</section>
+
+<section class="wrap">
+  <h2>API</h2>
+  <p><code>POST /v1/images/generations</code>, with OpenAI's request and error shapes.</p>
+  <table>
+    <tr><th>Field</th><th>Supported values</th></tr>
+    <tr><td><code>prompt</code></td><td>Required. Flan-T5 sees the first 128 tokens.</td></tr>
+    <tr><td><code>n</code></td><td>1&ndash;10, generated as one batch.</td></tr>
+    <tr><td><code>size</code></td><td><code>auto</code> / <code>256x256</code> native; other sizes are upscaled and center-cropped.</td></tr>
+    <tr><td><code>quality</code></td><td><code>low</code> = 20 steps, <code>medium</code> = 35, otherwise 50.</td></tr>
+    <tr><td><code>response_format</code></td><td><code>b64_json</code> (default) or <code>url</code>.</td></tr>
+    <tr><td><code>output_format</code></td><td><code>png</code>, <code>jpeg</code>, <code>webp</code>.</td></tr>
+    <tr><td><code>seed</code>, <code>guidance_scale</code>, <code>steps</code></td><td>Extensions &mdash; send via the SDK's <code>extra_body</code>. A seed reproduces the same image on any device.</td></tr>
+  </table>
+  <p style="margin-top:14px">
+    Also <code>GET /</code> (web form), <code>/v1/models</code>, <code>/docs</code> (OpenAPI) and <code>/health</code>.
+    Set <code>SUPRA_API_KEY</code> to require <code>Authorization: Bearer</code>.
+  </p>
+</section>
+
+<section class="wrap">
+  <h2>Good to know</h2>
+  <ul class="notes">
+    <li><strong>256&thinsp;&times;&thinsp;256 is the real resolution.</strong> Larger sizes are resampled, not generated at higher detail.</li>
+    <li><strong>Speed.</strong> 50 steps take roughly 10&ndash;15&thinsp;s on CPU; a GPU build is a one-line change to the Docker build arg.</li>
+    <li><strong>One request at a time.</strong> The sampler is serialized, so the server is best used as a personal or small-team endpoint.</li>
+    <li><strong>Not supported.</strong> Streaming, image edits and variations &mdash; the model is text-to-image only.</li>
+  </ul>
+</section>
+</main>
+
+<footer class="wrap">
+  <p>
+    Wrapper Apache-2.0 &middot;
+    model <a href="https://huggingface.co/SupraLabs/Supra2-IMG">Supra2-IMG</a> by SupraLabs (Apache-2.0) &middot;
+    <a href="https://github.com/sirmmo/openai-supra">source on GitHub</a>
+  </p>
+</footer>
+
+<script>
+document.querySelectorAll(".copy").forEach((button) => {
+  button.addEventListener("click", async () => {
+    const code = button.parentElement.querySelector("code").innerText;
+    try {
+      await navigator.clipboard.writeText(code);
+      button.textContent = "copied";
+    } catch {
+      button.textContent = "press ⌘C";
+    }
+    setTimeout(() => { button.textContent = "copy"; }, 1600);
+  });
+});
+</script>
+</body>
+</html>

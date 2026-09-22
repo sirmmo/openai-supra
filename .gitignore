@@ -9,3 +9,7 @@ build/
 *.png
 *.jpg
 *.webp
+
+# Sample images shipped with the site
+!docs/**/*.png
+!docs/**/*.jpg

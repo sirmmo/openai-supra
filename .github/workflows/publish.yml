@@ -147,7 +147,7 @@ jobs:
         run: |
           # shellcheck disable=SC2046  # word splitting is how the tag/digest lists expand
           docker buildx imagetools create \
-            $(jq -cr '.target."docker.metadata-action".tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
+            $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
             $(printf '${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@sha256:%s ' *)
 
       - name: Inspect image
