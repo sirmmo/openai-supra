@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Supra2-IMG</title>
+<style>
+  :root {
+    --bg: #0f1115; --panel: #171a21; --line: #272b36; --text: #e8eaf0;
+    --muted: #949bac; --accent: #6ea8fe; --accent-ink: #0b1220; --danger: #ff8080;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f6f7f9; --panel: #ffffff; --line: #e2e5ea; --text: #16181d;
+      --muted: #5d6474; --accent: #2563eb; --accent-ink: #ffffff; --danger: #b42318;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  header { padding: 24px 16px 8px; text-align: center; }
+  h1 { margin: 0; font-size: 20px; letter-spacing: .2px; }
+  header p { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
+  header a { color: var(--muted); }
+  main {
+    max-width: 1080px; margin: 0 auto; padding: 16px;
+    display: grid; gap: 16px; grid-template-columns: 340px minmax(0, 1fr);
+    align-items: start;
+  }
+  @media (max-width: 800px) { main { grid-template-columns: 1fr; } }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; }
+  label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+  textarea, input, select {
+    width: 100%; padding: 8px 10px; background: var(--bg); color: var(--text);
+    border: 1px solid var(--line); border-radius: 8px; font: inherit;
+  }
+  textarea { resize: vertical; min-height: 84px; }
+  input:focus, textarea:focus, select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .field { margin-bottom: 12px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 12px; }
+  .chip {
+    border: 1px solid var(--line); background: transparent; color: var(--muted);
+    border-radius: 999px; padding: 3px 10px; font-size: 12px; cursor: pointer;
+  }
+  .chip:hover { color: var(--text); border-color: var(--accent); }
+  button.primary {
+    width: 100%; padding: 10px; border: 0; border-radius: 8px; cursor: pointer;
+    background: var(--accent); color: var(--accent-ink); font: 600 15px/1 inherit;
+  }
+  button.primary:disabled { opacity: .55; cursor: progress; }
+  #status { margin-top: 10px; font-size: 13px; color: var(--muted); min-height: 20px; }
+  #status.error { color: var(--danger); }
+  .results { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+  figure { margin: 0; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+  figure img { display: block; width: 100%; background: #000; }
+  figcaption { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding: 8px 10px; font-size: 12px; color: var(--muted); }
+  figcaption .actions { white-space: nowrap; }
+  figcaption button, figcaption a { color: var(--accent); background: none; border: 0; padding: 0; font: inherit; cursor: pointer; text-decoration: none; }
+  .empty { color: var(--muted); font-size: 14px; text-align: center; padding: 48px 16px; border: 1px dashed var(--line); border-radius: var(--radius); }
+  .skeleton { aspect-ratio: 1; border-radius: var(--radius); border: 1px solid var(--line); background: var(--panel); animation: pulse 1.4s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: .45; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Supra2-IMG</h1>
+  <p>100M-parameter text-to-image &middot; OpenAI-compatible API at <a href="/v1">/v1</a> &middot; <a href="/docs">docs</a></p>
+</header>
+
+<main>
+  <form class="panel" id="form">
+    <div class="field">
+      <label for="prompt">Prompt</label>
+      <textarea id="prompt" required placeholder="a sea jellyfish floating in the pitch-black ocean depths"></textarea>
+      <div class="chips" id="examples"></div>
+    </div>
+
+    <div class="field" id="key-field" hidden>
+      <label for="apikey">API key</label>
+      <input id="apikey" type="password" autocomplete="current-password" placeholder="required by this server">
+    </div>
+
+    <div class="field">
+      <label for="size">Size</label>
+      <select id="size">
+        <option value="256x256">256 &times; 256 (native)</option>
+        <option value="512x512">512 &times; 512 (upscaled)</option>
+        <option value="1024x1024">1024 &times; 1024 (upscaled)</option>
+      </select>
+    </div>
+
+    <div class="grid2">
+      <div class="field">
+        <label for="n">Images</label>
+        <input id="n" type="number" min="1" max="4" value="1">
+      </div>
+      <div class="field">
+        <label for="seed">Seed <span style="opacity:.7">(blank = random)</span></label>
+        <input id="seed" type="number" min="0" placeholder="random">
+      </div>
+      <div class="field">
+        <label for="steps">Steps</label>
+        <input id="steps" type="number" min="1" max="200" value="50">
+      </div>
+      <div class="field">
+        <label for="cfg">Guidance</label>
+        <input id="cfg" type="number" min="0" max="20" step="0.5" value="3">
+      </div>
+    </div>
+
+    <button class="primary" id="go" type="submit">Generate</button>
+    <div id="status" role="status" aria-live="polite"></div>
+  </form>
+
+  <section>
+    <div class="results" id="results"></div>
+    <div class="empty" id="empty">Generated images appear here.</div>
+  </section>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const EXAMPLES = [
+  "a sea jellyfish floating in the pitch-black ocean depths",
+  "a red fox sitting in fresh snow, golden hour",
+  "a cozy cabin in a pine forest at night, warm window light",
+  "a hot air balloon over green hills at sunrise",
+];
+
+EXAMPLES.forEach((text) => {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "chip";
+  b.textContent = text.length > 34 ? text.slice(0, 32) + "…" : text;
+  b.title = text;
+  b.onclick = () => { $("prompt").value = text; $("prompt").focus(); };
+  $("examples").appendChild(b);
+});
+
+// The server tells us whether it needs a key; only then do we ask for one.
+fetch("/v1").then((r) => r.json()).then((info) => {
+  if (info.auth_required) {
+    $("key-field").hidden = false;
+    $("apikey").value = sessionStorage.getItem("supra-key") || "";
+  }
+}).catch(() => {});
+
+function setStatus(text, isError) {
+  $("status").textContent = text;
+  $("status").classList.toggle("error", !!isError);
+}
+
+function addResult(b64, meta) {
+  $("empty").hidden = true;
+  const fig = document.createElement("figure");
+  const img = document.createElement("img");
+  img.src = "data:image/png;base64," + b64;
+  img.alt = meta.prompt;
+  img.loading = "lazy";
+
+  const cap = document.createElement("figcaption");
+  const info = document.createElement("span");
+  // A batch shares one seed, so name the position too: reproducing image k needs the same n.
+  const position = meta.n > 1 ? ` (${meta.index} of ${meta.n})` : "";
+  info.textContent = `seed ${meta.seed}${position} · ${meta.size} · ${meta.steps} steps`;
+  const actions = document.createElement("span");
+  actions.className = "actions";
+
+  const reuse = document.createElement("button");
+  reuse.type = "button";
+  reuse.textContent = "reuse seed";
+  reuse.onclick = () => { $("seed").value = meta.seed; $("n").value = meta.n; };
+
+  const dl = document.createElement("a");
+  dl.textContent = "download";
+  dl.href = img.src;
+  dl.download = `supra-${meta.seed}.png`;
+  dl.style.marginLeft = "10px";
+
+  actions.append(reuse, dl);
+  cap.append(info, actions);
+  fig.append(img, cap);
+  $("results").prepend(fig);
+}
+
+$("form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const prompt = $("prompt").value.trim();
+  if (!prompt) return;
+
+  const n = Number($("n").value) || 1;
+  const size = $("size").value;
+  const steps = Number($("steps").value) || 50;
+  const cfg = Number($("cfg").value);
+  // Always send an explicit seed so the result shown is reproducible.
+  const seed = $("seed").value === "" ? Math.floor(Math.random() * 2 ** 31) : Number($("seed").value);
+  const key = $("apikey").value.trim();
+  if (key) sessionStorage.setItem("supra-key", key);
+
+  const placeholders = Array.from({ length: n }, () => {
+    const div = document.createElement("div");
+    div.className = "skeleton";
+    $("results").prepend(div);
+    return div;
+  });
+  $("empty").hidden = true;
+  $("go").disabled = true;
+
+  const started = Date.now();
+  const tick = setInterval(
+    () => setStatus(`Generating ${n} image${n > 1 ? "s" : ""}… ${((Date.now() - started) / 1000).toFixed(0)}s`),
+    200,
+  );
+
+  try {
+    const res = await fetch("/v1/images/generations", {
+      method: "POST",
+      headers: Object.assign({ "Content-Type": "application/json" }, key ? { Authorization: "Bearer " + key } : {}),
+      body: JSON.stringify({ model: "supra2-img", prompt, n, size, seed, steps, guidance_scale: cfg }),
+    });
+    const body = await res.json();
+    if (!res.ok) throw new Error(body?.error?.message || `HTTP ${res.status}`);
+
+    body.data.forEach((item, i) =>
+      addResult(item.b64_json, { prompt, seed, size: body.size, steps, n, index: i + 1 }));
+    setStatus(`Done in ${((Date.now() - started) / 1000).toFixed(1)}s`);
+  } catch (err) {
+    setStatus(err.message, true);
+  } finally {
+    clearInterval(tick);
+    placeholders.forEach((p) => p.remove());
+    $("go").disabled = false;
+    if (!$("results").children.length) $("empty").hidden = false;
+  }
+});
+</script>
+</body>
+</html>

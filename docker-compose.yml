@@ -1,0 +1,21 @@
+services:
+  supra:
+    build:
+      context: .
+      args:
+        PYTHON_VERSION: "3.12"
+    # `docker compose up --build` builds locally; `docker compose pull` fetches this.
+    image: ghcr.io/sirmmo/openai-supra:latest
+    ports:
+      # SUPRA_BIND=127.0.0.1 restricts this to the local machine.
+      - "${SUPRA_BIND:-0.0.0.0}:${SUPRA_PORT:-8000}:8000"
+    environment:
+      SUPRA_API_KEY: ${SUPRA_API_KEY:-}
+      SUPRA_DEVICE: ${SUPRA_DEVICE:-}
+      SUPRA_REVISION: ${SUPRA_REVISION:-}
+    volumes:
+      - hf-cache:/data/hf
+    restart: unless-stopped
+
+volumes:
+  hf-cache:
